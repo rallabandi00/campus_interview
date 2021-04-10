@@ -1,0 +1,471 @@
+USE [Lofoten_Testing]
+GO
+/****** Object:  StoredProcedure [dbo].[usp_InsertUpdateBookingDetails]    Script Date: 4/10/2021 1:35:54 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+
+-- Author:		<Author,,Name>
+
+-- Create date: <Create Date,,>
+
+-- Description:	<Description,,>
+
+-- =============================================
+ALTER PROCEDURE [dbo].[usp_InsertUpdateBookingDetails]
+
+
+
+@bookingdetails utt_bookingdetails readonly,
+
+@RETURN_VALUE INT OUTPUT
+
+  as
+
+begin
+
+SET NOCOUNT ON;
+
+
+
+    -- Insert statements for procedure here
+
+
+
+	begin try
+
+	begin tran
+
+	DECLARE @bookingcode varchar(50)
+
+	DECLARE @BookingpropertyName  varchar(max)
+
+	DECLARE @Guestname varchar(50)
+
+	DECLARE @bookingdate datetime
+
+	DECLARE @CheckinDate DATETIME
+
+	DECLARE @CheckOutDate datetime
+
+	DECLARE @AdultCount int
+
+	DECLARE @ChildCount int
+
+	DECLARE @location varchar(50)
+
+	DECLARE @totalpayment varchar(50)
+
+	DECLARE @booking_status  varchar(50)
+
+	declare @firstname varchar(max)
+
+	declare @lastname varchar(max)
+
+	declare @bookingtype  varchar(50)
+
+	declare @checkintime time
+
+    declare @checkouttime time
+
+    declare @requestcheckindate datetime
+
+    declare @requestcheckoudate datetime
+
+    declare @requestcheckintime time
+
+    declare @requestcheckoutime time
+
+	declare @propertyrefid int
+
+
+	declare insertdetails cursor  for
+
+	select bookingcode,
+
+	bookingPropertyName,
+
+	Guestname,
+
+	AdultCount,
+
+	ChildCount,
+
+	bookingdate,
+
+	checkIndate,
+
+	CheckoutDate,
+
+	location,
+
+	totalPayment,
+
+	booking_status,
+
+	firstname,
+
+	lastname,
+
+	bookingtype,
+
+	checkintime, 
+
+    checkouttime,
+
+    requestcheckindate, 
+
+    requestcheckoudate, 
+
+    requestcheckintime, 
+
+    requestcheckoutime ,
+
+	popertyid
+
+
+
+	from @bookingdetails
+
+	 open insertdetails
+
+		fetch next from insertdetails into
+
+		@bookingcode,
+
+		@BookingpropertyName,
+
+		@Guestname,
+
+		@AdultCount,
+
+		@ChildCount,
+
+		@bookingdate,
+
+		@CheckinDate,
+
+		@CheckOutDate,
+
+		@location,
+
+		@totalpayment,
+
+		@booking_status,
+
+		@firstname,
+
+		@lastname,
+
+		@bookingtype,
+
+        @checkintime,
+
+        @checkouttime, 
+
+        @requestcheckindate, 
+
+        @requestcheckoudate,
+
+        @requestcheckintime, 
+
+        @requestcheckoutime ,
+
+		@propertyrefid
+
+
+
+		while @@FETCH_STATUS=0
+
+		begin
+
+		if(@booking_status='Confirmed' or @booking_status='OK')
+
+		begin
+
+			if(not exists(select * from LRH_BOOKING_DETAILS (NOLOCK) where BKG_CODE=@bookingcode ))
+
+		 begin
+
+			
+
+			declare @guestcode nvarchar(50)
+
+			declare @nextcount int
+
+			set @guestcode=(select top 1 GUS_CODE from LRH_GUEST_DETAILS  (NOLOCK) order by GUS_ID desc)
+
+			set @guestcode=Replace(@guestcode,'G','')
+
+			if(isnull(@guestcode,'')='')
+			begin
+				set @guestcode='0'
+			end
+
+			set @nextcount=convert(int,@guestcode)+1
+
+			set @guestcode='G'+right(('0000'+convert(varchar(10),@nextcount)),4)
+
+
+
+			insert into LRH_GUEST_DETAILS(GUS_CODE
+
+			,GUS_FIRST_NAME
+
+			,GUS_LAST_NAME)
+
+			values(@guestcode,
+
+			convert(varbinary(max),@firstname),
+
+			convert(varbinary(max),@lastname))
+
+			declare @identity int
+
+			set @identity=@@IDENTITY
+
+			declare @status int
+
+			declare @gusid int
+
+			declare @bookingtypeid int
+
+			set @gusid=(select GUS_ID from LRH_GUEST_DETAILS  (NOLOCK) where GUS_CODE=@guestcode)
+
+			if(@booking_status='OK')
+
+			begin
+
+			set @status=1
+
+			end 
+
+			if(@bookingtype='Booking')
+
+			begin
+
+			set @bookingtypeid=1
+
+			end			
+
+			insert into LRH_BOOKING_DETAILS(BKG_CODE,
+
+			BKG_AMOUNT,
+
+			BKG_CHECKIN,
+
+			BKG_CHECKOUT,
+
+			BKG_GUS_ID,
+
+			BKG_GUS_NAME,
+
+			BKG_TYPE,
+
+			BKG_ENTRY_DATE,
+
+			BKG_STATUS)
+
+			values(
+
+			@bookingcode,
+
+			@totalpayment,
+
+			@CheckinDate,
+
+			@CheckOutDate,
+
+			@gusid,
+
+			convert(varbinary(max),@Guestname),
+
+			@bookingtypeid
+
+			,@bookingdate,
+
+			@status)
+
+			set @identity=@@IDENTITY
+
+			declare @bookingid bigint
+
+			declare @propertyid bigint
+
+			declare @cleanerassigned int
+
+
+
+			set @bookingid=@@IDENTITY--(select BKG_ID from LRH_BOOKING_DETAILS where BKG_CODE=@bookingcode)
+
+
+
+			set @propertyid=(select pro_id from LRH_MST_PROPERTY (NOLOCK) where PRO_BKGSITE_NAME=@BookingpropertyName)
+
+			if(isnull(@propertyid,'')='')
+			begin
+			declare @procode varchar(50)
+
+			set @procode=(select top 1 PRO_CODE from LRH_MST_PROPERTY (NOLOCK) order by PRO_ID desc)
+			set @procode=Replace(@procode,'ACT','')
+			if(isnull(@procode,'')='')
+			begin
+				set @procode='0'
+			end
+
+			set @nextcount=convert(int,@procode)+1
+
+			set @procode='ACT'+right(('00'+convert(varchar(10),@nextcount)),2)
+
+				insert into LRH_MST_PROPERTY(PRO_CODE,PRO_LRH_NAME,PRO_AIRBNB_NAME,PRO_BKGSITE_NAME)
+				values
+				(@procode,@BookingpropertyName,@BookingpropertyName,@BookingpropertyName)
+
+				set @propertyid=@@IDENTITY
+
+				--Insert into LRH_PROPERT_REF(PropertyID,PropertyRefiD,PropertyName)
+				--values
+				--(@propertyid,@propertyrefid,@BookingpropertyName)
+
+			
+			end
+
+			insert into LRH_BOOKING_PROPERTY_DETAILS
+
+			(BKG_ID,BKG_DTL_PRO_ID,BKG_DTL_PRO_NAME,BKG_DTL_GUS_ID,BKG_DTL_PRO_RATE,BKG_DTL_CHECKIN,BKG_DTL_CHECKOUT)
+
+			values(@bookingid,@propertyid,CONVERT(VARBINARY(MAX),@BookingpropertyName),@gusid,@totalpayment,convert(datetime,@CheckinDate),convert(datetime,@CheckOutDate))
+
+		end
+
+		else if(@booking_status='Cancelled')
+
+		begin
+
+			update LRH_BOOKING_DETAILS 
+
+	  set BKG_STATUS=2 where BKG_CODE=@bookingcode
+
+		end
+
+		else if(@booking_status='request')
+
+		begin
+
+			if(not exists(select * from LRH_BOOKING_UPDATE_REQUEST(NOLOCK) where BKG_REQ_CONFIRM_CODE=@bookingcode))
+
+			begin
+
+				declare @bookincode varchar(200)
+
+				set @bookincode=(select top 1 BKG_CODE  from LRH_BOOKING_DETAILS (NOLOCK) where BKG_CHECKIN=convert(datetime,@CheckinDate) and BKG_CHECKOUT=convert(datetime,@CheckOutDate)
+
+				and BKG_GUS_NAME=convert(varbinary(max),@Guestname))
+
+				INSERT INTO LRH_BOOKING_UPDATE_REQUEST(
+
+				BKG_REQ_CONFIRM_CODE,
+
+				BKG_REQ_ORGCHECKIN,
+
+				BKG_REQ_ORGCHECKOUT,
+
+				BKG_REQ_REQCHECKIN,
+
+				BKG_REQ_REQCHECKOUT,
+
+				BKG_REQ_PROPERTY_NAME,
+
+				BKG_REQ_GUEST_NAME,
+
+				BKG_REQ_CREATE_DATE,
+
+				BKG_REQ_STATUS
+
+				)
+
+				VALUES
+
+				(@bookincode,@CheckinDate,@CheckOutDate,@requestcheckindate,@requestcheckoudate,CONVERT(VARBINARY(MAX),@BookingpropertyName),convert(varbinary(max),@Guestname),GETDATE(),1)
+
+			end
+
+		end
+
+		fetch next from insertdetails into
+
+		@bookingcode,
+
+		@BookingpropertyName,
+
+		@Guestname,
+
+		@AdultCount,
+
+		@ChildCount,
+
+		@bookingdate,
+
+		@CheckinDate,
+
+		@CheckOutDate,
+
+		@location,
+
+		@totalpayment,
+
+		@booking_status,
+
+		@firstname,
+
+		@lastname,
+
+		@bookingtype,
+
+        @checkintime,
+
+        @checkouttime, 
+
+        @requestcheckindate, 
+
+        @requestcheckoudate,
+
+        @requestcheckintime, 
+
+        @requestcheckoutime,
+		
+		@propertyrefid 
+
+		end
+
+		end
+
+		close insertdetails
+
+		deallocate insertdetails
+
+		set @RETURN_VALUE=1
+
+
+		commit
+		end try
+
+		begin catch
+
+		rollback
+
+		set @RETURN_VALUE=-2
+
+		declare @errormessage nvarchar(4000)
+		set @errormessage=Error_message()
+		declare @errorseverity int
+		set @errorseverity=Error_Severity()
+		declare @errorstate int
+		set @errorstate=ERROR_STATE();
+		RAISERROR(@errormessage,@errorseverity,@errorstate);
+		end catch
+
+END
+
