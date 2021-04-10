@@ -1,0 +1,40 @@
+ALTER PROCEDURE [dbo].[Proc_HoursCalculation]
+	@UserId int,
+	@option varchar(50),
+	@startdate varchar(10)=null,
+	@enddate varchar(10)=null
+AS
+BEGIN
+	declare @currentdate datetime
+	declare @fromdate datetime
+	declare @hours time
+
+	if(@option='Start')
+	begin
+	
+	set @currentdate=GETDATE()
+		if exists(select userid from HoursCalculation where UserId=@UserId and Enddate is null and TotalHours is null )
+		begin
+		set @fromdate=(select StartDate  from HoursCalculation where UserId=@UserId and Enddate is null and TotalHours is null)
+		set @hours=convert(time,@currentdate-@fromdate)
+		update HoursCalculation set Enddate=GETDATE(),TotalHours=@hours where UserId=@UserId and Enddate is null and TotalHours is null
+		end
+		else 
+		begin
+			insert into HoursCalculation(UserId,StartDate)values(@UserId,GETDATE())
+		end
+	end
+	else if(@option='stop')
+	begin
+		set @currentdate=GETDATE()
+		if exists(select userid from HoursCalculation where UserId=@UserId and Enddate is null and TotalHours is null )
+		begin
+		set @fromdate=(select StartDate  from HoursCalculation where UserId=@UserId and Enddate is null and TotalHours is null)
+		set @hours=convert(time,@currentdate-@fromdate)
+		update HoursCalculation set Enddate=GETDATE(),TotalHours=@hours where UserId=@UserId and Enddate is null and TotalHours is null
+		end
+	
+	end
+	
+
+END
