@@ -1,0 +1,90 @@
+USE [IBill]
+GO
+/****** Object:  StoredProcedure [dbo].[Proc_hours]    Script Date: 4/10/2021 2:29:25 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		<Author,,Name>
+-- Create date: <Create Date,,>
+-- Description:	<Description,,>
+-- =============================================
+ALTER PROCEDURE [dbo].[Proc_hours] 
+	@startofday varchar(10)=null,
+	@currentday varchar(10)=null
+AS
+BEGIN
+	
+	declare @endofday varchar(10)
+
+	set @endofday=DATEADD(DD,7,@startofday)
+
+	declare @weekhours int
+	declare  @monthlyhours int
+	declare @yearlyhours int
+	declare @weekworkdays int
+	declare @monthworkdays int
+	declare @yearlyworkdays int
+	declare @totaltaskinweek int
+	declare @totaltaskinmonth int
+	declare @totaltaskinyear int
+
+		  select @weekhours=SUM(DATEDIFF(HOUR, '0:00:00', TotalHours))   from HoursCalculation 
+		  where userid=1 
+		  and 
+		  StartDate is not null and EndDate is not null and
+		  convert(varchar(10),startdate,121)>=@startofday and convert(varchar(10),enddate,121)<=@endofday
+
+		  select @monthlyhours=SUM(DATEDIFF(HOUR, '0:00:00', TotalHours))   from HoursCalculation 
+		  where userid=1 
+		  and MONTH(StartDate)=MONTH(@startofday)
+		  
+
+		  select @yearlyhours=SUM(DATEDIFF(HOUR, '0:00:00', TotalHours))   from HoursCalculation 
+		  where userid=1 
+		  and Year(StartDate)=Year(@startofday)
+
+		  select @weekworkdays=count(convert(varchar(10),startdate,121)) from HoursCalculation 
+		  where userid=1 
+		  and
+		  StartDate is not null and EndDate is not null 
+		  and convert(varchar(10),startdate,121)>=@startofday and convert(varchar(10),enddate,121)<=@endofday
+		  group by convert(varchar(10),startdate,121)
+
+
+		  select @monthworkdays=isnull(count(convert(varchar(10),startdate,121)),0)   from HoursCalculation 
+		  where userid=1 
+		  and MONTH(StartDate)=MONTH(@currentday)
+		  group by convert(varchar(10),startdate,121)
+
+		  select @yearlyworkdays=isnull(count(convert(varchar(10),startdate,121)),0)  from HoursCalculation 
+		  where userid=1 
+		  and Year(StartDate)=Year(@currentday)
+		  group by convert(varchar(10),startdate,121)
+
+		  select @totaltaskinweek=count(*) from LRH_CLEANER_PROPERTY_DETAILS 
+		  where CLN_CLENER_ID=1 and  CLN_STATUS=1 
+		  and convert(varchar(10),CLN_ENTRY_DATE,121)>=@startofday and convert(varchar(10),CLN_ENTRY_DATE,121)<=@endofday
+
+		  select @totaltaskinmonth=count(*)   from LRH_CLEANER_PROPERTY_DETAILS 
+		  where CLN_CLENER_ID=1  and  CLN_STATUS=1 and
+		   MONTH(CLN_ENTRY_DATE)=MONTH(@currentday)
+
+		  select @totaltaskinyear=count(*)  from LRH_CLEANER_PROPERTY_DETAILS 
+		  where CLN_CLENER_ID=1  and  CLN_STATUS=1
+		  and Year(CLN_ENTRY_DATE)=Year(@currentday)
+
+
+		  select @weekhours as WeekHours,
+				@monthlyhours as MonthlyHours,
+				@yearlyhours as YearltHours,
+				@weekworkdays as WeekWorkDays,
+				@monthworkdays as monthWorkDays,
+				@yearlyworkdays as YearlyWorkDays,
+				@totaltaskinweek as TotalTaskinWeek,
+				@totaltaskinmonth as TotalTaskinMonth,
+				@totaltaskinyear as TotalTaskinYear
+		  
+	
+END
